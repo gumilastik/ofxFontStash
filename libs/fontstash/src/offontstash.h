@@ -12,31 +12,35 @@ unsigned int glfonsRGBA(unsigned char r, unsigned char g, unsigned char b, unsig
 
 #include "ofMain.h"
 
-struct OFFONScontext {
-	ofFbo* fbo;
+struct GLFONScontext {
+	ofImage* img;
 	ofVbo* vbo;
 	int width, height;
 };
-typedef struct OFFONScontext OFFONScontext;
+typedef struct GLFONScontext GLFONScontext;
 
 static int glfons__renderCreate(void* userPtr, int width, int height)
 {
-	OFFONScontext* context = (OFFONScontext*)userPtr;
+	GLFONScontext* context = (GLFONScontext*)userPtr;
 	// Create may be called multiple times, delete existing texture.
-	if (context->fbo != 0) {
-		delete context->fbo;
-		context->fbo = 0;
+	if (context->img != 0) {
+		delete context->img;
+		context->img = 0;
 	}
 
-	if (context->vbo == 0) {
-		context->vbo = new ofVbo();
+	if (context->vbo != 0) {
+		delete context->vbo;
+		context->vbo = 0;
 	}
 
 	context->width = width;
 	context->height = height;
 
-	context->fbo = new ofFbo();
-	context->fbo->allocate(width, height, GL_RGBA);
+	context->img = new ofImage();
+	context->img->allocate(width, height, OF_IMAGE_COLOR_ALPHA);
+	
+	context->vbo = new ofVbo();
+	
 	return 1;
 }
 
@@ -48,24 +52,19 @@ static int glfons__renderResize(void* userPtr, int width, int height)
 
 static void glfons__renderUpdate(void* userPtr, int* rect, const unsigned char* data)
 {
-	OFFONScontext* context = (OFFONScontext*)userPtr;
+	GLFONScontext* context = (GLFONScontext*)userPtr;
 	int w = rect[2] - rect[0];
 	int h = rect[3] - rect[1];
 
-	if (context->fbo == 0) return;
+	if (context->img == 0) return;
 
-	ofImage img;
-	img.allocate(w, h, OF_IMAGE_COLOR_ALPHA);
 	for (int y = 0; y < h; y++) {
 		for (int x = 0; x < w; x++) {
-			img.setColor(x, y, ofColor(255, data[(x + rect[0]) + (y + rect[1]) * context->width]));
+			context->img->setColor(x + rect[0], y + rect[1], ofColor(255, data[(rect[1] + y) * context->width + (rect[0] + x)]));
 		}
 	}
-	img.update();
 
-	context->fbo->begin();
-	img.draw(rect[0], rect[1]);
-	context->fbo->end();
+	context->img->update();
 }
 
 
@@ -81,16 +80,18 @@ ofFloatColor rgbaToOf(unsigned int& col)
 
 static void glfons__renderDraw(void* userPtr, const float* verts, const float* tcoords, const unsigned int* colors, int nverts)
 {
-	OFFONScontext* context = (OFFONScontext*)userPtr;
-	if (context->fbo == 0) return;
+	GLFONScontext* context = (GLFONScontext*)userPtr;
+	if (context->img == 0) return;
 
 	/*
 	// debug
-	context->fbo->getTexture()->draw(0, 0);
+	context->img->draw(0,0);
 	return;
 	*/
 
-	context->fbo->getTexture().bind();
+	ofFillFlag flag = ofGetFill();
+	ofFill();
+	context->img->bind();
 
 	context->vbo->setVertexData((glm::vec2*)verts, nverts, GL_DYNAMIC_DRAW);
 	context->vbo->setTexCoordData(tcoords, nverts, GL_DYNAMIC_DRAW);
@@ -106,31 +107,35 @@ static void glfons__renderDraw(void* userPtr, const float* verts, const float* t
 
 	context->vbo->draw(GL_TRIANGLES, 0, nverts);
 
-	context->fbo->getTexture().unbind();
+	context->img->unbind();
+	flag ? ofFill() : ofNoFill();
 }
 
 static void glfons__renderDelete(void* userPtr)
 {
-	OFFONScontext* context = (OFFONScontext*)userPtr;
-	if (context->fbo != 0) {
-		delete context->fbo;
-		context->fbo = 0;
+	GLFONScontext* context = (GLFONScontext*)userPtr;
+
+	if (context->img != 0) {
+		delete context->img;
+		context->img = 0;
 	}
+
 	if (context->vbo != 0) {
 		delete context->vbo;
 		context->vbo = 0;
 	}
+
 	free(context);
 }
 
 FONScontext* glfonsCreate(int width, int height, int flags)
 {
 	FONSparams params;
-	OFFONScontext* context;
+	GLFONScontext* context;
 
-	context = (OFFONScontext*)malloc(sizeof(OFFONScontext));
+	context = (GLFONScontext*)malloc(sizeof(GLFONScontext));
 	if (context == NULL) goto error;
-	memset(context, 0, sizeof(OFFONScontext));
+	memset(context, 0, sizeof(GLFONScontext));
 
 	memset(&params, 0, sizeof(params));
 	params.width = width;
