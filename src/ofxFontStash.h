@@ -11,12 +11,15 @@ extern "C" {
 class ofxFontStash {
     int font = FONS_INVALID;
     FONScontext* fs = NULL;
-    
+   
+	void cleanup();
+
 public:
     
     ofxFontStash();
     ~ofxFontStash();
     
+	ofxFontStash& operator=(const ofxFontStash& obj);
 	void load(const filesystem::path &filename, float fontsize);
 
 	float getLineHeight();

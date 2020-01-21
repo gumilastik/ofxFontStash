@@ -10,20 +10,35 @@ extern "C" {
 #include "offontstash.h"
 }
 
+void ofxFontStash::cleanup() {
+	if (fs != NULL) {
+		glfonsDelete(fs);
+		fs = NULL;
+	}
+}
+
 ofxFontStash::ofxFontStash(){
 	fs = NULL;
 }
 
 ofxFontStash::~ofxFontStash(){
-	if (fs != NULL) {
-		fonsDeleteInternal(fs);
-		fs = NULL;
+	cleanup();
+}
+
+ofxFontStash & ofxFontStash::operator=(const ofxFontStash & obj) {
+	if (this != &obj) {
+		cleanup();
+		font = obj.font;
+		fs = obj.fs;
 	}
+	return *this;
 }
 
 void ofxFontStash::load(const filesystem::path & filename, float fontsize) {
 	bool bUseArb = ofGetUsingArbTex();
 	ofDisableArbTex();
+
+	cleanup();
 
 	fs = glfonsCreate(2048, 2048, FONS_ZERO_TOPLEFT);
 	if (fs == NULL) {
@@ -33,7 +48,7 @@ void ofxFontStash::load(const filesystem::path & filename, float fontsize) {
 
 	font = fonsAddFont(fs, "font", ofToDataPath(filename).c_str());
 	if (font == FONS_INVALID) {
-		printf("Could not add font normal.\n");
+		printf("Error loading font (might be a wrong filename).\n");
 		return;
 	}
 
